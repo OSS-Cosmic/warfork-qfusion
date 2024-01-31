@@ -210,8 +210,6 @@ typedef struct
 	// bumped each time R_RegisterWorldModel is called
 	volatile int 	worldModelSequence;
 
-	float			sinTableByte[256];
-
 	model_t			*worldModel;
 	mbrushmodel_t	*worldBrushModel;
 
@@ -438,13 +436,6 @@ extern cvar_t *gl_cull;
 extern cvar_t *vid_displayfrequency;
 extern cvar_t *vid_multiscreen_head;
 
-//====================================================================
-
-void R_NormToLatLong( const vec_t *normal, uint8_t latlong[2] );
-void R_LatLongToNorm( const uint8_t latlong[2], vec3_t out );
-void R_LatLongToNorm4( const uint8_t latlong[2], vec4_t out );
-
-//====================================================================
 
 //
 // r_alias.c
@@ -605,7 +596,6 @@ struct mesh_vbo_s *R_InitPostProcessingVBO( void );
 void		R_TransformForWorld( void );
 void		R_TransformForEntity( const entity_t *e );
 void		R_TranslateForEntity( const entity_t *e );
-void		R_TransformBounds( const vec3_t origin, const mat3_t axis, vec3_t mins, vec3_t maxs, vec3_t bbox[8] );
 
 void		R_DrawStretchPic( int x, int y, int w, int h, float s1, float t1, float s2, float t2, 
 	const vec4_t color, const shader_t *shader );
