@@ -36,8 +36,6 @@ static qmutex_t *r_imagesLock;
 
 static int unpackAlignment[NUM_QGL_CONTEXTS];
 
-static int *r_8to24table;
-
 static mempool_t *r_imagesPool;
 static char *r_imagePathBuf, *r_imagePathBuf2;
 static size_t r_sizeof_imagePathBuf, r_sizeof_imagePathBuf2;
@@ -2707,7 +2705,6 @@ void R_InitImages( void )
 	r_imagePathBuf = r_imagePathBuf2 = NULL;
 	r_sizeof_imagePathBuf = r_sizeof_imagePathBuf2 = 0;
 
-	r_8to24table = NULL;
 
 	memset( images, 0, sizeof( images ) );
 
@@ -2823,12 +2820,6 @@ void R_ShutdownImages( void )
 		R_Free( r_imagePathBuf );
 	if( r_imagePathBuf2 )
 		R_Free( r_imagePathBuf2 );
-
-	if( r_8to24table )
-	{
-		R_Free( r_8to24table );
-		r_8to24table = NULL;
-	}
 
 	ri.Mutex_Destroy( &r_imagesLock );
 
