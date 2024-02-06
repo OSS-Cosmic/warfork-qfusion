@@ -35,7 +35,7 @@ jobs:
       - name: Install build dependencies
         run: |
           apt update
-          apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libtheora-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip g++-4.9 g++-4.9-multilib g++-multilib gcc-4.9 gcc-4.9-multilib gcc-multilib libcurl4-gnutls-dev:i386 libfreetype6-dev:i386 libgl1-mesa-dev:i386 libglib2.0-dev:i386 libglu1-mesa-dev:i386 libopenal-dev:i386 libpng-dev:i386 libpulse-dev:i386 libsdl2-dev:i386 libstdc++6-i386-cross libtheora-dev:i386 libvorbis-dev:i386
+          apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip g++-4.9 g++-4.9-multilib g++-multilib gcc-4.9 gcc-4.9-multilib gcc-multilib libcurl4-gnutls-dev:i386 libfreetype6-dev:i386 libgl1-mesa-dev:i386 libglib2.0-dev:i386 libglu1-mesa-dev:i386 libopenal-dev:i386 libpng-dev:i386 libpulse-dev:i386 libsdl2-dev:i386 libstdc++6-i386-cross libvorbis-dev:i386
 
       - name: Download steamworks sdk
         run: |
@@ -93,7 +93,7 @@ jobs:
       - name: Install build dependencies
         run: |
           apt update
-          apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libtheora-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip g++-4.9 g++-4.9-multilib g++-multilib gcc-4.9 gcc-4.9-multilib gcc-multilib libcurl4-gnutls-dev:i386 libfreetype6-dev:i386 libgl1-mesa-dev:i386 libglib2.0-dev:i386 libglu1-mesa-dev:i386 libopenal-dev:i386 libpng-dev:i386 libpulse-dev:i386 libsdl2-dev:i386 libstdc++6-i386-cross libtheora-dev:i386 libvorbis-dev:i386
+          apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip g++-4.9 g++-4.9-multilib g++-multilib gcc-4.9 gcc-4.9-multilib gcc-multilib libcurl4-gnutls-dev:i386 libfreetype6-dev:i386 libgl1-mesa-dev:i386 libglib2.0-dev:i386 libglu1-mesa-dev:i386 libopenal-dev:i386 libpng-dev:i386 libpulse-dev:i386 libsdl2-dev:i386 libstdc++6-i386-cross libvorbis-dev:i386
 
       - name: Download steamworks sdk
         run: |
@@ -142,7 +142,7 @@ jobs:
       - name: Install build dependencies
         run: |
           apt update
-          apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libtheora-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip
+          apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip
 
       - name: Download steamworks sdk
         run: |
@@ -191,7 +191,7 @@ jobs:
       - name: Install build dependencies
         run: |
           apt update
-          apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libtheora-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip
+          apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip
 
       - name: Download steamworks sdk
         run: |
@@ -231,7 +231,7 @@ jobs:
       - name: Install build dependencies
         run: |
           brew update
-          brew install curl cmake sdl2 openal-soft libvorbis theora freetype git zip unzip
+          brew install curl cmake sdl2 openal-soft libvorbis freetype git zip unzip
 
       - name: Download steamworks sdk
         run: |
@@ -269,7 +269,7 @@ jobs:
       - name: Install build dependencies
         run: |
           brew update
-          brew install curl cmake sdl2 openal-soft libvorbis theora freetype git zip unzip
+          brew install curl cmake sdl2 openal-soft libvorbis freetype git zip unzip
 
       - name: Download steamworks sdk
         run: |

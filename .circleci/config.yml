@@ -17,7 +17,7 @@ jobs:
       - run: add-apt-repository "deb http://archive.ubuntu.com/ubuntu/ xenial main universe"
       - run: apt update
       - run: apt install -y openssh-client git # CircleCI Deps
-      - run: apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libtheora-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip g++-4.9 g++-4.9-multilib g++-multilib gcc-4.9 gcc-4.9-multilib gcc-multilib libcurl4-gnutls-dev:i386 libfreetype6-dev:i386 libgl1-mesa-dev:i386 libglib2.0-dev:i386 libglu1-mesa-dev:i386 libopenal-dev:i386 libpng-dev:i386 libpulse-dev:i386 libsdl2-dev:i386 libstdc++6-i386-cross libtheora-dev:i386 libvorbis-dev:i386
+      - run: apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip g++-4.9 g++-4.9-multilib g++-multilib gcc-4.9 gcc-4.9-multilib gcc-multilib libcurl4-gnutls-dev:i386 libfreetype6-dev:i386 libgl1-mesa-dev:i386 libglib2.0-dev:i386 libglu1-mesa-dev:i386 libopenal-dev:i386 libpng-dev:i386 libpulse-dev:i386 libsdl2-dev:i386 libstdc++6-i386-cross libvorbis-dev:i386
       - checkout
       - run: curl https://warfork.com/downloads/sdk/ --output third-party/steamworks/sdk.zip
       - run: unzip third-party/steamworks/sdk.zip -d third-party/steamworks
@@ -46,7 +46,7 @@ jobs:
       - run: add-apt-repository "deb http://archive.ubuntu.com/ubuntu/ xenial main universe"
       - run: apt update
       - run: apt install -y openssh-client git # CircleCI Deps
-      - run: apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libtheora-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip g++-4.9 g++-4.9-multilib g++-multilib gcc-4.9 gcc-4.9-multilib gcc-multilib libcurl4-gnutls-dev:i386 libfreetype6-dev:i386 libgl1-mesa-dev:i386 libglib2.0-dev:i386 libglu1-mesa-dev:i386 libopenal-dev:i386 libpng-dev:i386 libpulse-dev:i386 libsdl2-dev:i386 libstdc++6-i386-cross libtheora-dev:i386 libvorbis-dev:i386
+      - run: apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip g++-4.9 g++-4.9-multilib g++-multilib gcc-4.9 gcc-4.9-multilib gcc-multilib libcurl4-gnutls-dev:i386 libfreetype6-dev:i386 libgl1-mesa-dev:i386 libglib2.0-dev:i386 libglu1-mesa-dev:i386 libopenal-dev:i386 libpng-dev:i386 libpulse-dev:i386 libsdl2-dev:i386 libstdc++6-i386-cross libvorbis-dev:i386
       - checkout
       - run: curl https://warfork.com/downloads/sdk/ --output third-party/steamworks/sdk.zip
       - run: unzip third-party/steamworks/sdk.zip -d third-party/steamworks
@@ -71,7 +71,7 @@ jobs:
     steps:
       - run: apt update
       - run: apt install -y openssh-client git # CircleCI Deps
-      - run: apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libtheora-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip
+      - run: apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip
       - checkout
       - run: curl https://warfork.com/downloads/sdk/ --output third-party/steamworks/sdk.zip
       - run: unzip third-party/steamworks/sdk.zip -d third-party/steamworks
@@ -96,7 +96,7 @@ jobs:
     steps:
       - run: apt update
       - run: apt install -y openssh-client git # CircleCI Deps
-      - run: apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libtheora-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip
+      - run: apt install -y curl clang cmake build-essential libsdl2-dev libopenal-dev libvorbis-dev libfreetype6-dev libcurl4-gnutls-dev git zip unzip
       - checkout
       - run: curl https://warfork.com/downloads/sdk/ --output third-party/steamworks/sdk.zip
       - run: unzip third-party/steamworks/sdk.zip -d third-party/steamworks
@@ -118,7 +118,7 @@ jobs:
     steps:
       - checkout
       - run: brew update
-      - run: brew install curl cmake sdl2 openal-soft libvorbis theora freetype git zip unzip
+      - run: brew install curl cmake sdl2 openal-soft libvorbis freetype git zip unzip
       - run: curl https://warfork.com/downloads/sdk/ --output third-party/steamworks/sdk.zip
       - run: unzip third-party/steamworks/sdk.zip -d third-party/steamworks
       - run: cmake -DBUILD_STEAMLIB=1 -G Xcode ./source
@@ -138,7 +138,7 @@ jobs:
     steps:
       - checkout
       - run: brew update
-      - run: brew install curl cmake sdl2 openal-soft libvorbis theora freetype git zip unzip
+      - run: brew install curl cmake sdl2 openal-soft libvorbis freetype git zip unzip
       - run: curl https://warfork.com/downloads/sdk/ --output third-party/steamworks/sdk.zip
       - run: unzip third-party/steamworks/sdk.zip -d third-party/steamworks
       - run: cmake -DCMAKE_BUILD_TYPE=DEBUG -DBUILD_STEAMLIB=1 -DWF_BUILD_DSYM=ON -G Xcode ./source
