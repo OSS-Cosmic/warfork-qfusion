@@ -47,6 +47,7 @@ struct image_buffer_pogo_s {
 void R_ImagePogoIncrement(struct image_buffer_pogo_s* pogo);
 struct image_buffer_s* R_ImagePogoCurrent(struct image_buffer_pogo_s* pogo);
 struct image_buffer_s* R_ImagePogoNext(struct image_buffer_pogo_s* pogo);
+void R_ImagePogoFree(struct image_buffer_pogo_s* pogo);
 
 // image_buffer_s
 void R_CalcImageBufferLayout(uint16_t pixWidth, uint16_t pixHeight, enum texture_format_e format, uint16_t rowAlignment, struct image_buffer_layout_s* layout); 

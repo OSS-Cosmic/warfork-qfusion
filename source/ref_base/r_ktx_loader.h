@@ -43,5 +43,5 @@ uint16_t R_KTXGetNumberArrayElements( const struct ktx_context_s *cntx );
 //bool R_KTXIsCompressedFormat( const struct ktx_context_s *cntx );
 void R_KTXFillBuffer( const struct ktx_context_s *cntx, struct image_buffer_s *image, uint32_t faceIndex, uint32_t arrOffset, uint16_t mipLevel );
 struct ktx_image_s* R_KTXGetImage(const struct ktx_context_s *cntx, uint32_t mipLevel, uint32_t faceIndex, uint32_t arrayOffset );
-
+void R_FreeKTXContext(struct ktx_context_s* context);
 #endif

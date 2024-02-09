@@ -241,10 +241,13 @@ uint16_t R_KTXGetNumberArrayElements( const struct ktx_context_s *cntx )
 {
 	return max( 1, cntx->numberOfArrayElements );
 }
+
+void R_FreeKTXContext(struct ktx_context_s* context) {
+	arrfree(context->images);
+}
+
 void R_KTXFillBuffer( const struct ktx_context_s *cntx, struct image_buffer_s *image, uint32_t faceIndex, uint32_t arrOffset, uint16_t mipLevel ) {
-
 	assert( image );
-
 	struct ktx_image_s *img = R_KTXGetImage( cntx, mipLevel, faceIndex, arrOffset );
 	assert(img);
 	

@@ -292,6 +292,7 @@ void R_Buf_MipMapQuarterInPlaceU8( struct image_buffer_s *src )
 	assert( src->layout.format == R_FORMAT_BGR8_UNORM || 
 				src->layout.format == R_FORMAT_BGRA8_UNORM || 
 				src->layout.format == R_FORMAT_BGR8_UNORM || 
+				src->layout.format == R_FORMAT_RGB8_UNORM || 
 			  src->layout.format == R_FORMAT_RGBA8_UNORM || 
 				src->layout.format == R_FORMAT_L8_A8_UNORM || 
 				src->layout.format == R_FORMAT_L8_UNORM || 

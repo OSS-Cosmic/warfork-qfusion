@@ -6,6 +6,7 @@ uint32_t R_FormatChannelCount(enum texture_format_e format) {
     case R_FORMAT_R8_SNORM: return 1;
     case R_FORMAT_R8_UINT: return 1;
     case R_FORMAT_R8_SINT: return 1;
+    case R_FORMAT_RGB8_UNORM: return 3;
     case R_FORMAT_BGRA8_UNORM: return 4;
     case R_FORMAT_BGRA8_SRGB: return 4;
     case R_FORMAT_RG8_UNORM: return 2;
@@ -35,34 +36,6 @@ uint32_t R_FormatChannelCount(enum texture_format_e format) {
     case R_FORMAT_RGBA32_SINT: return 4;
     case R_FORMAT_RGBA32_SFLOAT: return 4;
     case R_FORMAT_BGR8_UNORM: return 3;
-    //case R_FORMAT_R10_G10_B10_A2_UNORM: return 4;
-    //case R_FORMAT_R10_G10_B10_A2_UINT: return 4;
-    //case R_FORMAT_R11_G11_B10_UFLOAT: return 4;
-    //case R_FORMAT_R9_G9_B9_E5_UFLOAT: return 32;
-    //case R_FORMAT_BC1_RGBA_UNORM: return 64;
-    //case R_FORMAT_BC1_RGBA_SRGB: return 64;
-    //case R_FORMAT_BC2_RGBA_UNORM: return 128;
-    //case R_FORMAT_BC2_RGBA_SRGB: return 128;
-    //case R_FORMAT_BC3_RGBA_UNORM: return 128;
-    //case R_FORMAT_BC3_RGBA_SRGB: return 128;
-    //case R_FORMAT_BC4_R_UNORM: return 0;
-    //case R_FORMAT_BC4_R_SNORM: return 0;
-    //case R_FORMAT_BC5_RG_UNORM: return 0;
-    //case R_FORMAT_BC5_RG_SNORM: return 0;
-    //case R_FORMAT_BC6H_RGB_UFLOAT: return 0;
-    //case R_FORMAT_BC6H_RGB_SFLOAT: return 0;
-    //case R_FORMAT_BC7_RGBA_UNORM: return 0;
-    //case R_FORMAT_BC7_RGBA_SRGB: return 0;
-
-    //case R_FORMAT_D16_UNORM: return 16;
-    //case R_FORMAT_D24_UNORM_S8_UINT: return 32;
-    //case R_FORMAT_D32_SFLOAT: return 32;
-    //case R_FORMAT_D32_SFLOAT_S8_UINT_X24: return 64;
-
-    //case R_FORMAT_R24_UNORM_X8: return 32;
-    //case R_FORMAT_X24_R8_UINT: return 32;
-    //case R_FORMAT_X32_R8_UINT_X24: return 64;
-    //case R_FORMAT_R32_SFLOAT_X8_X24: return 64;
     default:
       assert(false);
   }

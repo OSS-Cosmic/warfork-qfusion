@@ -28,8 +28,15 @@ void R_CalcImageBufferLayout( uint16_t width, uint16_t height, enum texture_form
 		layout->size = layout->rowPitch * layout->logicalHeight;
 	}
 }
+
 void R_ConfigureBufferSize( struct image_buffer_s *buffer, size_t size ) {
 	arrsetlen(buffer->data, size);
+}
+
+
+void R_ImagePogoFree(struct image_buffer_pogo_s* pogo) {
+	R_FreeImageBuffer(&pogo->buffers[0]);
+	R_FreeImageBuffer(&pogo->buffers[1]);
 }
 
 void R_ConfigureImageBuffer(struct image_buffer_s *buffer, struct image_buffer_layout_s *layout )

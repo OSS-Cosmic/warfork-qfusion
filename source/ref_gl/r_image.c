@@ -698,7 +698,7 @@ static void __R_SubmitImage( uint32_t glContext, struct image_s *image, const st
 				UTIL_TEX_2D_IMAGE( GL_R, GL_R, GL_UNSIGNED_BYTE );
 			break;
 		default:
-			assert( false );
+			assert( 0);
 			break;
 	}
 
@@ -2240,7 +2240,9 @@ static bool __R_LoadImageFromDisk( int thread_id, image_t *image )
 	if(extension == imageExtension[IMAGE_EXT_KTX]) {
 		sdscatfmt(resolvedPath, "%s", imageExtension[IMAGE_EXT_KTX]);
 		uint8_t *buffer;
-		const int bufferLen = R_LoadFile( pathname, (void **)&buffer );
+		const int bufferLen = R_LoadFile( resolvedPath, (void **)&buffer );
+		sdssubstr(resolvedPath, 0, basePathLen);
+		
 		if(buffer) {
 			const enum ktx_context_result_e result  = R_InitKTXContext(buffer, bufferLen, &ktxContext); 
 			if(result != KTX_ERR_NONE) {
@@ -2287,6 +2289,8 @@ static bool __R_LoadImageFromDisk( int thread_id, image_t *image )
 					__R_SubmitImage( thread_id, image, &upload );
 				}
 			}
+			R_FreeKTXContext(&ktxContext);
+			R_ImagePogoFree(&pogo);
 			R_FreeFile(buffer);
 			return true;
 		}
