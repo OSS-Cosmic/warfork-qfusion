@@ -19,5 +19,5 @@ else ()
 endif()
 
 add_library(cin SHARED ${CIN_SOURCES} ${CIN_HEADERS})
-target_link_libraries(cin PRIVATE ${OGG_LIBRARY} ${VORBIS_LIBRARIES} ${CIN_PLATFORM_LIBRARIES})
+target_link_libraries(cin PRIVATE ${OGG_LIBRARY} ${VORBIS_LIBRARIES} ${CIN_PLATFORM_LIBRARIES} fs_module_api )
 qf_set_output_dir(cin libs)

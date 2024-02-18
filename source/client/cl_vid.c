@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cin.h"
 #include "ftlib.h"
 #include "xpm.h"
+#include "../qcommon/os/fs_module.h"
 
 cvar_t *vid_ref;
 cvar_t *vid_width, *vid_height;
@@ -317,6 +318,7 @@ static bool VID_LoadRefresh( const char *name )
 
 	VID_UnloadRefresh();
 
+	import.fs_module = &fs_export_mod;
 	import.Com_Error = &Com_Error;
 	import.Com_Printf = &Com_Printf;
 	import.Com_DPrintf = &Com_DPrintf;

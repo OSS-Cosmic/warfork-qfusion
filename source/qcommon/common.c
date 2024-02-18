@@ -31,6 +31,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "../matchmaker/mm_common.h"
 #include "compression.h"
 
+#include "./os/fs_module.h"
+
 #define MAX_NUM_ARGVS	50
 
 static bool	dynvars_initialized = false;

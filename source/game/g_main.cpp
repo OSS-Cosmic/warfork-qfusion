@@ -20,6 +20,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "g_local.h"
 
+#include "../qcommon/os/fs_module.h"
+
 game_locals_t game;
 level_locals_t level;
 spawn_temp_t st;
@@ -237,6 +239,8 @@ void G_Init( unsigned int seed, unsigned int framemsec, int protocol, const char
 	G_Printf( "==== G_Init ====\n" );
 
 	srand( seed );
+
+	FS_InitFSModule();
 
 	G_InitGameShared();
 

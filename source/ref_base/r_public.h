@@ -21,6 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define R_PUBLIC_H
 
 #include "../cgame/ref.h"
+#include "../qcommon/os/fs_module.h"
+
 
 #define REF_API_VERSION 21
 
@@ -124,6 +126,9 @@ typedef struct
 	int ( *BufPipe_ReadCmds )( qbufPipe_t *queue, unsigned (**cmdHandlers)( const void * ) );
 	void ( *BufPipe_Wait )( qbufPipe_t *queue, int (*read)( qbufPipe_t *, unsigned( ** )(const void *), bool ), 
 		unsigned (**cmdHandlers)( const void * ), unsigned timeout_msec );
+  
+  struct fs_export_s* fs_module;
+
 } ref_import_t;
 
 typedef struct

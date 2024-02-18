@@ -47,6 +47,9 @@ QF_DLL_EXPORT ref_export_t *GetRefAPI( ref_import_t *import )
 	static ref_export_t globals;
 
 	ri = *import;
+	FS_InitFSModule();
+
+	FS_ImportFsModule(import->fs_module);
 
 	globals.API = GetRefAPIVersion;
 

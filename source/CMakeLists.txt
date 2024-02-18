@@ -287,6 +287,8 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     capitalize(QFUSION_CLIENT_NAME)
 endif()
 
+add_subdirectory(qcommon/os)
+
 add_subdirectory(angelwrap)
 add_subdirectory(cgame)
 add_subdirectory(game)
