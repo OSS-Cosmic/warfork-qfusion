@@ -849,53 +849,63 @@ MEMORY MANAGEMENT
 struct mempool_s;
 typedef struct mempool_s mempool_t;
 
-#define MEMPOOL_TEMPORARY			1
-#define MEMPOOL_GAMEPROGS			2
-#define MEMPOOL_USERINTERFACE		4
-#define MEMPOOL_CLIENTGAME			8
-#define MEMPOOL_SOUND				16
-#define MEMPOOL_DB					32
-#define MEMPOOL_ANGELSCRIPT			64
-#define MEMPOOL_CINMODULE			128
-#define MEMPOOL_REFMODULE			256
+#define MEMPOOL_TEMPORARY 1
+#define MEMPOOL_GAMEPROGS 2
+#define MEMPOOL_USERINTERFACE 4
+#define MEMPOOL_CLIENTGAME 8
+#define MEMPOOL_SOUND 16
+#define MEMPOOL_DB 32
+#define MEMPOOL_ANGELSCRIPT 64
+#define MEMPOOL_CINMODULE 128
+#define MEMPOOL_REFMODULE 256
 
 void Memory_Init( void );
 void Memory_InitCommands( void );
 void Memory_Shutdown( void );
 void Memory_ShutdownCommands( void );
 
-void *_Mem_AllocExt( mempool_t *pool, size_t size, size_t aligment, int z, int musthave, int canthave, const char *filename, int fileline );
-void *_Mem_Alloc( mempool_t *pool, size_t size, int musthave, int canthave, const char *filename, int fileline );
-void *_Mem_Realloc( void *data, size_t size, const char *filename, int fileline );
-void _Mem_Free( void *data, int musthave, int canthave, const char *filename, int fileline );
-mempool_t *_Mem_AllocPool( mempool_t *parent, const char *name, int flags, const char *filename, int fileline );
-mempool_t *_Mem_AllocTempPool( const char *name, const char *filename, int fileline );
-void _Mem_FreePool( mempool_t **pool, int musthave, int canthave, const char *filename, int fileline );
-void _Mem_EmptyPool( mempool_t *pool, int musthave, int canthave, const char *filename, int fileline );
-char *_Mem_CopyString( mempool_t *pool, const char *in, const char *filename, int fileline );
+// these allocations are temporary
+void *__Malloc_Mem( size_t alignment, size_t size, const char *sourceFilename, int sourceFileline , const char *sourceFuncName);
+void *__Realloc_Mem( void *mem, size_t size, const char *sourceFilename, const char *sourceFuncName, int sourceFileline );
+void __Free_Mem( void *mem );
+void *__Pool_Malloc_Mem( mempool_t *pool, size_t aligned, size_t size, bool managed, const char *sourceFilename, const char *sourceFuncName, int sourceFileline );
 
+mempool_t*Pool_Create( mempool_t *parent, const char *name, int flags );
+void Pool_Empty( mempool_t *pool );
+void Pool_Free( mempool_t  *pool );
+void Pool_Assert_Flags( const mempool_t *pool, int requiredFlags );
+
+//void *_Mem_Alloc( mempool_t *pool, size_t size, int musthave, int canthave, const char *filename, int fileline );
+//void *_Mem_Realloc( void *data, size_t size, const char *filename, int fileline );
+//void _Mem_Free( void *data, int musthave, int canthave, const char *filename, int fileline );
+//mempool_t *_Mem_AllocPool( mempool_t *parent, const char *name, int flags, const char *filename, int fileline );
+//mempool_t *_Mem_AllocTempPool( const char *name, const char *filename, int fileline );
+//void _Mem_FreePool( mempool_t **pool, int musthave, int canthave, const char *filename, int fileline );
+//void _Mem_EmptyPool( mempool_t *pool, int musthave, int canthave, const char *filename, int fileline );
+//char *_Mem_CopyString( mempool_t *pool, const char *in, const char *filename, int fileline );
+//
 void _Mem_CheckSentinels( void *data, const char *filename, int fileline );
 void _Mem_CheckSentinelsGlobal( const char *filename, int fileline );
 
 size_t Mem_PoolTotalSize( mempool_t *pool );
 
-#define Mem_AllocExt( pool, size, z ) _Mem_AllocExt( pool, size, 0, z, 0, 0, __FILE__, __LINE__ )
-#define Mem_Alloc( pool, size ) _Mem_Alloc( pool, size, 0, 0, __FILE__, __LINE__ )
-#define Mem_Realloc( data, size ) _Mem_Realloc( data, size, __FILE__, __LINE__ )
-#define Mem_Free( mem ) _Mem_Free( mem, 0, 0, __FILE__, __LINE__ )
-#define Mem_AllocPool( parent, name ) _Mem_AllocPool( parent, name, 0, __FILE__, __LINE__ )
-#define Mem_AllocTempPool( name ) _Mem_AllocTempPool( name, __FILE__, __LINE__ )
-#define Mem_FreePool( pool ) _Mem_FreePool( pool, 0, 0, __FILE__, __LINE__ )
-#define Mem_EmptyPool( pool ) _Mem_EmptyPool( pool, 0, 0, __FILE__, __LINE__ )
+
+
+#define Mem_AllocExt( pool, size, z ) __Pool_Malloc_Mem( pool, 0, size, true, __FILE__, __LINE__, __FUNCTION__)
+#define Mem_Alloc( pool, size ) __Pool_Malloc_Mem( pool, 0, size, true, __FILE__, __LINE__, __FUNCTION__)
+#define Mem_Realloc( data, size ) __Realloc_Mem( data, size, __FILE__, __LINE__, __FUNCTION__)
+#define Mem_Free( mem ) __Free_Mem( mem)
+#define Mem_AllocPool( parent, name ) Pool_Create( parent, name, 0)
+#define Mem_AllocTempPool( name ) 
+#define Mem_FreePool( pool ) Pool_Free( pool)
+#define Mem_EmptyPool( pool ) Pool_Empty( pool)
 #define Mem_CopyString( pool, str ) _Mem_CopyString( pool, str, __FILE__, __LINE__ )
 
 #define Mem_CheckSentinels( data ) _Mem_CheckSentinels( data, __FILE__, __LINE__ )
 #define Mem_CheckSentinelsGlobal() _Mem_CheckSentinelsGlobal( __FILE__, __LINE__ )
-#ifdef NDEBUG
+
+
 #define Mem_DebugCheckSentinelsGlobal()
-#else
-#define Mem_DebugCheckSentinelsGlobal() _Mem_CheckSentinelsGlobal( __FILE__, __LINE__ )
-#endif
 
 // used for temporary allocations
 extern mempool_t *tempMemPool;

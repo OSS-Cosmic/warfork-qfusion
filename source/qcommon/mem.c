@@ -8,7 +8,7 @@ of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+MERCHANTABILITY or FITNESS FOR A PURPOSE.
 
 See the GNU General Public License for more details.
 
@@ -17,83 +17,134 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
+
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+//
+// Restrictions & freedoms pertaining to usage and redistribution of this software:
+//
+//  * This software is 100% free
+//  * If you use this software (in part or in whole) you must credit the author.
+//  * This software may not be re-distributed (in part or in whole) in a modified
+//    form without clear documentation on how to obtain a copy of the original work.
+//  * You may not use this software to directly or indirectly cause harm to others.
+//  * This software is provided as-is and without warrantee. Use at your own risk.
+//
+// For more information, visit HTTP://www.FluidStudios.com
+//
+// ---------------------------------------------------------------------------------------------------------------------------------
+// Originally created on 12/22/2000 by Paul Nettle
+//
+// Copyright 2000, Fluid Studios, Inc., all rights reserved.
+// ---------------------------------------------------------------------------------------------------------------------------------
+
 // Z_zone.c
 
 #include "qcommon.h"
+#include "qthreads.h"
 
 //#define MEMTRASH
 
 #define POOLNAMESIZE 128
-
 #define MEMHEADER_SENTINEL1			0xDEADF00D
 #define MEMHEADER_SENTINEL2			0xDF
 
 #define MEMALIGNMENT_DEFAULT		16
+#define MEM_TRACK_MEMORY 1
 
-typedef struct memheader_s
-{
-	// address returned by malloc (may be significantly before this header to satisify alignment)
-	void *baseaddress;
+// ---------------------------------------------------------------------------------------------------------------------------------
+// -DOC- Get to know these values. They represent the values that will be used to fill unused and deallocated RAM.
+// ---------------------------------------------------------------------------------------------------------------------------------
 
-	// next and previous memheaders in chain belonging to pool
-	struct memheader_s *next;
-	struct memheader_s *prev;
+static const bool randomWipe = false; 
+static const bool alwaysWipeAll = false; 
 
-	// pool this memheader belongs to
-	struct mempool_s *pool;
 
-	// size of the memory after the header (excluding header and sentinel2)
-	size_t size;
-
-	// size of the memory including the header, alignment and sentinel2
-	size_t realsize;
-
-	// file name and line where Mem_Alloc was called
-	const char *filename;
-	int fileline;
-
-	// should always be MEMHEADER_SENTINEL1
-	unsigned int sentinel1;
-	// immediately followed by data, which is followed by a MEMHEADER_SENTINEL2 byte
-} memheader_t;
+static const unsigned int prefixPattern = 0xbaadf00d;      // Fill pattern for bytes preceeding allocated blocks
+static const unsigned int postfixPattern = 0xdeadc0de;     // Fill pattern for bytes following allocated blocks
+static const unsigned int unusedPattern = 0xfeedface;      // Fill pattern for freshly allocated blocks
+static const unsigned int releasedPattern = 0xdeadbeef;    // Fill pattern for deallocated blocks
 
 struct mempool_s
 {
-	// should always be MEMHEADER_SENTINEL1
-	unsigned int sentinel1;
+	const char *sourceFile;
+	const char *sourceFunc;
+	int sourceLine;
 
-	// chain of individual memory allocations
-	struct memheader_s *chain;
-
-	// temporary, etc
-	int flags;
-
-	// total memory allocated in this pool (inside memheaders)
-	int totalsize;
-
-	// total memory allocated in this pool (actual malloc total)
-	int realsize;
-
-	// updated each time the pool is displayed by memlist, shows change from previous time (unless pool was freed)
-	int lastchecksize;
-
+	size_t reportedSize; 
+	size_t actualSize;
+	
 	// name of the pool
-	char name[POOLNAMESIZE];
+	const char* name;
+	uint32_t flags;
 
-	// linked into global mempool list or parent's children list
+	struct memAllocUnit_s *managed; // managed allocations to the pool
+	struct memAllocUnit_s *temporary; // temporary allocations if not free this might indicated a leak
+
 	struct mempool_s *next;
-
 	struct mempool_s *parent;
-	struct mempool_s *child;
-
-	// file name and line where Mem_AllocPool was called
-	const char *filename;
-
-	int fileline;
-
-	// should always be MEMHEADER_SENTINEL1
-	unsigned int sentinel2;
 };
+
+struct memAllocUnit_s {
+	void *actualAddress;
+	void *reportedAddress;
+
+	size_t offset;
+	size_t alignment;
+	size_t reportedSize; 
+	size_t actualSize;
+
+	const char *sourceFile;
+	const char *sourceFunc;
+	int sourceLine;
+
+	// next link in the hash 
+	struct memAllocUnit_s *hashNext;
+	struct memAllocUnit_s *hashPrev;
+
+	// pool this memheader belongs to
+	struct memAllocPool_s* pool;
+	struct memAllocUnit_s* next;
+	struct memAllocUnit_s* prev;
+};
+
+//struct mempool_s
+//{
+//	// should always be MEMHEADER_SENTINEL1
+//	unsigned int sentinel1;
+//
+//	// chain of individual memory allocations
+//	struct memheader_s *chain;
+//
+//	// temporary, etc
+//	int flags;
+//
+//	// total memory allocated in this pool (inside memheaders)
+//	int totalsize;
+//
+//	// total memory allocated in this pool (actual malloc total)
+//	int realsize;
+//
+//	// updated each time the pool is displayed by memlist, shows change from previous time (unless pool was freed)
+//	int lastchecksize;
+//
+//	// name of the pool
+//	char name[POOLNAMESIZE];
+//
+//	// linked into global mempool list or parent's children list
+//	struct mempool_s *next;
+//
+//	struct mempool_s *parent;
+//	struct mempool_s *child;
+//
+//	// file name and line where Mem_AllocPool was called
+//	const char *filename;
+//
+//	int fileline;
+//
+//	// should always be MEMHEADER_SENTINEL1
+//	unsigned int sentinel2;
+//};
 
 // ============================================================================
 
@@ -115,6 +166,483 @@ static qmutex_t *memMutex;
 
 static bool memory_initialized = false;
 static bool commands_initialized = false;
+
+#if defined( _DEBUG )
+	static const size_t paddingSize = 4;
+#else
+	static const size_t paddingSize = 1;
+#endif
+static const size_t MaximumAlignment = sizeof( void * );
+
+static struct mempool_s  *poolMemChain;
+
+static struct mempool_s *reservoirMemPool;
+static struct mempool_s  **reservoirMemPoolBuffer;
+static size_t memPoolCount = 0;
+
+static struct memAllocUnit_s *reservoirAllocUnit;
+static struct memAllocUnit_s **reservoirAllocUnitBuffer;
+static size_t memAllocCount = 0;
+
+#define AllocHashSize ( 1u < 12u )
+static struct memAllocUnit_s *hashAllocUnits[AllocHashSize];
+
+static const char* insertCommas(unsigned int value)
+{
+	static char str[30];
+	memset(str, 0, sizeof(str));
+
+	sprintf(str, "%u", value);
+	if (strlen(str) > 3)
+	{
+		memmove(&str[strlen(str) - 3], &str[strlen(str) - 4], 4);
+		str[strlen(str) - 4] = ',';
+	}
+	if (strlen(str) > 7)
+	{
+		memmove(&str[strlen(str) - 7], &str[strlen(str) - 8], 8);
+		str[strlen(str) - 8] = ',';
+	}
+	if (strlen(str) > 11)
+	{
+		memmove(&str[strlen(str) - 11], &str[strlen(str) - 12], 12);
+		str[strlen(str) - 12] = ',';
+	}
+
+	return str;
+}
+
+
+static const char* __memorySizeString(uint32_t size)
+{
+	static char str[90];
+	if (size > (1024 * 1024))
+		printf(str, "%10s (%7.2fM)", insertCommas(size), ((float)size) / (1024.0f * 1024.0f));
+	else if (size > 1024)
+		sprintf(str, "%10s (%7.2fK)", insertCommas(size), ((float)size) / 1024.0f);
+	else
+		sprintf(str, "%10s bytes     ", insertCommas(size));
+	return str;
+}
+
+
+static void __dumpAllocUnit(const struct memAllocUnit_s* allocUnit)
+{
+	Com_Printf("[I] Address (reported): %010p", allocUnit->reportedAddress);
+	Com_Printf("[I] Address (actual)  : %010p", allocUnit->actualAddress);
+	Com_Printf("[I] Size (reported)   : 0x%08X (%s)", (unsigned int)(allocUnit->reportedSize),
+		__memorySizeString((unsigned int)(allocUnit->reportedSize)));
+	Com_Printf("[I] Size (actual)     : 0x%08X (%s)", (unsigned int)(allocUnit->actualSize),
+		__memorySizeString((unsigned int)(allocUnit->actualSize)));
+	Com_Printf("[I] Owner             : %s(%d)::%s", allocUnit->sourceFile, allocUnit->sourceLine, allocUnit->sourceFunc);
+
+//#if MMGR_BACKTRACE
+//	Log("[I] %sBacktrace             : ", prefix);
+//	dumpBacktrace(NULL, allocUnit);
+//#endif
+
+ // Log("[I] %sAllocation type   : %s", prefix, allocationTypes[allocUnit->allocationType]);
+ // Log("[I] %sAllocation number : %d", prefix, allocUnit->allocationNumber);
+}
+
+static void __dumpMemoryPool(const struct mempool_s* allocPool) {
+	Com_Printf("[P] Name              : %s", allocPool->name);
+	Com_Printf("[P] Size (reported)   : 0x%08X (%s)", (unsigned int)(allocPool->reportedSize),
+		__memorySizeString((unsigned int)(allocPool->reportedSize)));
+	Com_Printf("[P] Size (actual)     : 0x%08X (%s)", (unsigned int)(allocPool->actualSize),
+		__memorySizeString((unsigned int)(allocPool->actualSize)));
+	Com_Printf("[P] Owner             : %s(%d)::%s", allocPool->sourceFile, allocPool->sourceLine, allocPool->sourceFunc);
+}
+
+
+
+bool __validateAllocUnit(const struct memAllocUnit_s* allocUnit)
+{
+	// Make sure the padding is untouched
+
+	uint8_t* pre = ((uint8_t*)allocUnit->reportedAddress - paddingSize * sizeof(uint32_t));
+	uint8_t* post = ((uint8_t*)allocUnit->reportedAddress + allocUnit->reportedSize);
+	bool      errorFlag = false;
+	const size_t paddingBytes = paddingSize * sizeof(uint32_t);
+	for (size_t i = 0; i < paddingBytes; i++, pre++, post++)
+	{
+		const uint8_t expectedPrefixByte = (prefixPattern >> ((i % sizeof(uint32_t)) * 8)) & 0xFF;
+		if (*pre != expectedPrefixByte)
+		{
+			Com_Printf("[!] A memory allocation unit was corrupt because of an underrun:");
+			__dumpAllocUnit(allocUnit);
+			errorFlag = true;
+		}
+
+		// If you hit this assert, then you should know that this allocation unit has been damaged. Something (possibly the
+		// owner?) has underrun the allocation unit (modified a few bytes prior to the start). You can interrogate the
+		// variable 'allocUnit' to see statistics and information about this damaged allocation unit.
+		assert(*pre == expectedPrefixByte);
+
+		const uint8_t expectedPostfixByte = (postfixPattern >> ((i % sizeof(uint32_t)) * 8)) & 0xFF;
+		if (*post != expectedPostfixByte)
+		{
+			Com_Printf("[!] A memory allocation unit was corrupt because of an overrun:");
+			__dumpAllocUnit(allocUnit);
+			errorFlag = true;
+		}
+
+		// If you hit this assert, then you should know that this allocation unit has been damaged. Something (possibly the
+		// owner?) has overrun the allocation unit (modified a few bytes after the end). You can interrogate the variable
+		// 'allocUnit' to see statistics and information about this damaged allocation unit.
+		assert(*post == expectedPostfixByte);
+	}
+
+	// Return the error status (we invert it, because a return of 'false' means error)
+
+	return !errorFlag;
+}
+
+
+static void __wipeWithPattern(void* reportedAddress, size_t reportedSize, size_t originalReportedSize, uint32_t pattern)
+{
+	// For a serious test run, we use wipes of random a random value. However, if this causes a crash, we don't want it to
+	// crash in a differnt place each time, so we specifically DO NOT call srand. If, by chance your program calls srand(),
+	// you may wish to disable that when running with a random wipe test. This will make any crashes more consistent so they
+	// can be tracked down easier.
+
+	if (randomWipe)
+	{
+		pattern = ((rand() & 0xff) << 24) | ((rand() & 0xff) << 16) | ((rand() & 0xff) << 8) | (rand() & 0xff);
+	}
+
+	// -DOC- We should wipe with 0's if we're not in debug mode, so we can help hide bugs if possible when we release the
+	// product. So uncomment the following line for releases.
+	//
+	// Note that the "alwaysWipeAll" should be turned on for this to have effect, otherwise it won't do much good. But we'll
+	// leave it this way (as an option) because this does slow things down.
+	//	pattern = 0;
+
+	// This part of the operation is optional
+	if (alwaysWipeAll && reportedSize > originalReportedSize)
+	{
+		// Fill the bulk
+
+		uint32_t* lptr = (uint32_t*)(((char*)reportedAddress) + originalReportedSize);
+		size_t length = reportedSize - originalReportedSize;
+		for (size_t i = 0; i < (length >> 2); i++, lptr++)
+		{
+			*lptr = pattern;
+		}
+
+		// Fill the remainder
+
+		unsigned int shiftCount = 0;
+		char*        cptr = (char*)(lptr);
+		for (size_t i = 0; i < (length & 0x3); i++, cptr++, shiftCount += 8)
+		{
+			*cptr = (char)((pattern & (0xff << shiftCount)) >> shiftCount);
+		}
+	}
+
+	// Write in the prefix/postfix bytes
+
+	// Calculate the correct start addresses for pre and post patterns relative to
+	// allocUnit->reportedAddress, since it may have been offset due to alignment requirements
+	uint8_t* pre = (uint8_t*)reportedAddress - paddingSize * sizeof(uint32_t);
+	uint8_t* post = (uint8_t*)reportedAddress + reportedSize;
+
+	const size_t paddingBytes = paddingSize * sizeof(uint32_t);
+	for (size_t i = 0; i < paddingBytes; i++, pre++, post++)
+	{
+		*pre = (prefixPattern >> ((i % sizeof(uint32_t)) * 8)) & 0xFF;
+		*post = (postfixPattern >> ((i % sizeof(uint32_t)) * 8)) & 0xFF;
+	}
+}
+
+
+
+static inline size_t resolveUnitHashIndex(const void *reportedAddress ) {
+	return ( ( (size_t)reportedAddress ) >> 4 ) & ( AllocHashSize - 1 );
+}
+
+static struct memAllocUnit_s *__findMemAllocUnit( const void *reportedAddress )
+{
+	// Just in case...
+	assert( reportedAddress != NULL );
+
+	// Use the address to locate the hash index. Note that we shift off the lower four bits. This is because most allocated
+	// addresses will be on four-, eight- or even sixteen-byte boundaries. If we didn't do this, the hash index would not have
+	// very good coverage.
+
+	struct memAllocUnit_s *ptr = hashAllocUnits[resolveUnitHashIndex(reportedAddress)];
+	while( ptr ) {
+		if( ptr->reportedAddress == reportedAddress )
+			return ptr;
+		ptr = ptr->next;
+	}
+	return NULL;
+}
+static size_t __calculateActualSize(size_t reportedSize) {
+	// We use DWORDS as our padding, and a uint32_t is guaranteed to be 4 bytes, but an int is not (ANSI defines an int as
+	// being the standard word size for a processor; on a 32-bit machine, that's 4 bytes, but on a 64-bit machine, it's
+	// 8 bytes, which means an int can actually be larger than a uint32_t.)
+	
+	return reportedSize + paddingSize * sizeof(uint32_t) * 2;
+}
+
+static void* __calculateReportedAddress(const void* actualAddress)
+{
+	return (void*)(((const char*)actualAddress) + sizeof(uint32_t) * paddingSize);
+}
+
+static struct memAllocUnit_s *__GetAllocUnitFromReserved()
+{
+	if(!reservoirAllocUnit) {
+		reservoirAllocUnit = malloc( 256 * sizeof( struct memAllocUnit_s) );
+
+		memset( reservoirAllocUnit, 0, sizeof( struct memAllocUnit_s ) * 256 );
+		for (unsigned int i = 0; i < 256 - 1; i++)
+		{
+			reservoirAllocUnit[i].next = &reservoirAllocUnit[i + 1];
+		}
+		reservoirAllocUnitBuffer = realloc(reservoirAllocUnitBuffer, (memPoolCount  + 1) * sizeof(struct memAllocPool_s*));
+		reservoirAllocUnitBuffer [memAllocCount++] = reservoirAllocUnit;
+	}
+	struct memAllocUnit_s *unit = reservoirAllocUnit;
+	reservoirAllocUnit = unit->next;
+	return unit;
+}
+
+static void __freeMemUnit(struct memAllocUnit_s* allocUnit) {
+	free(allocUnit->reportedAddress);
+
+	if(allocUnit->pool) {
+		if(allocUnit->prev) 
+			allocUnit->prev->next = allocUnit->next;
+		if(allocUnit->next) 
+			allocUnit->next->prev = allocUnit->prev;
+		allocUnit->pool = NULL;
+	}
+
+	const size_t hashIndex = resolveUnitHashIndex(allocUnit);
+	if(hashAllocUnits[hashIndex] == allocUnit) {
+		hashAllocUnits[hashIndex] = hashAllocUnits[hashIndex]->hashNext; 
+	} else {
+		if(allocUnit->hashNext)
+			allocUnit->hashNext->hashPrev = allocUnit->hashPrev;
+		if(allocUnit->hashPrev)
+			allocUnit->hashPrev->hashNext = allocUnit->hashNext;
+	}
+
+	allocUnit->next = reservoirAllocUnit; // we reserve next
+	reservoirAllocUnit = allocUnit;
+}
+
+void *__Malloc_Mem( size_t alignment, size_t size,  const char *sourceFileName, int fileline, const char *sourceFuncName)
+{
+	QMutex_Lock( memMutex );
+	struct memAllocUnit_s *unit = __GetAllocUnitFromReserved();
+	unit->reportedSize = size;
+	unit->alignment = alignment;
+	
+	unit->actualSize = __calculateActualSize( size ) + alignment;
+	unit->actualAddress = malloc( unit->actualSize );
+	unit->reportedAddress = __calculateReportedAddress( unit->actualAddress );
+	unit->offset = ( (size_t)unit->reportedAddress ) % alignment;
+	if( unit->offset ) {
+		unit->reportedAddress = (uint8_t *)unit->reportedAddress + ( alignment - unit->offset  );
+	}
+	const size_t hashIndex = resolveUnitHashIndex( unit->reportedAddress );
+	if( hashAllocUnits[hashIndex] ) {
+		hashAllocUnits[hashIndex]->hashPrev = unit;
+		unit->hashNext = hashAllocUnits[hashIndex];
+	} 
+	hashAllocUnits[hashIndex] = unit;
+	QMutex_Unlock( memMutex );
+	
+	__wipeWithPattern( unit->reportedAddress, unit->reportedSize , 0, unusedPattern );
+
+	return unit->reportedAddress;
+}
+
+void *__Realloc_Mem(void* mem, size_t reportedSize,  const char *sourceFilename, const char *sourceFuncName, int sourceFileline)
+{
+	QMutex_Lock( memMutex );
+	struct memAllocUnit_s* unit = __findMemAllocUnit(mem);
+	QMutex_Unlock( memMutex );
+	
+	assert(unit);
+	assert(__validateAllocUnit(unit));
+
+	const size_t updatedSize = __calculateActualSize( reportedSize ) + unit->alignment;
+	void* actualAddress = malloc(updatedSize);
+	void* newReportedAddress = actualAddress;
+	size_t offset = ( (size_t)newReportedAddress ) % unit->alignment;
+	if( offset ) {
+		newReportedAddress  = (uint8_t *)unit->reportedAddress + ( unit->alignment - unit->offset  );
+	}
+	memcpy(newReportedAddress, unit->reportedAddress, min(unit->reportedSize, reportedSize));
+	__wipeWithPattern(newReportedAddress, reportedSize, unit->reportedSize, unusedPattern); // wipe the new address 
+	
+	__wipeWithPattern(unit->reportedAddress, unit->reportedSize, 0, releasedPattern); // wipe the old address
+	free(unit->actualAddress);
+	
+	unit->actualAddress = actualAddress;
+	unit->reportedAddress = newReportedAddress;
+	unit->reportedSize = reportedSize;
+	unit->actualSize = updatedSize;
+
+	unit->sourceLine = sourceFileline;
+	unit->sourceFunc = sourceFuncName;
+	unit->sourceFile = sourceFilename; 
+	__wipeWithPattern( unit->reportedAddress, unit->reportedSize , 0, unusedPattern );
+	
+	return unit->reportedAddress;
+}
+
+void *__Pool_Malloc( struct mempool_s *pool, size_t alignment, size_t size, bool managed, const char *sourceFilename, const char *sourceFuncName, int sourceFileline )
+{
+	QMutex_Lock( memMutex );
+	struct memAllocUnit_s *unit = __GetAllocUnitFromReserved();
+	unit->reportedSize = size;
+	unit->alignment = alignment;
+	unit->actualSize = __calculateActualSize( size ) + alignment;
+	unit->actualAddress = malloc( unit->actualSize );
+	unit->reportedAddress = __calculateReportedAddress( unit->actualAddress );
+	unit->offset = ( (size_t)unit->reportedAddress ) % alignment;
+	if( unit->offset ) {
+		unit->reportedAddress = (uint8_t *)unit->reportedAddress + ( alignment - unit->offset  );
+	}
+	const size_t hashIndex = resolveUnitHashIndex( unit->reportedAddress );
+	if( hashAllocUnits[hashIndex] ) {
+		hashAllocUnits[hashIndex]->hashPrev = unit;
+		unit->hashNext = hashAllocUnits[hashIndex];
+	} 
+	hashAllocUnits[hashIndex] = unit;
+
+	if(managed) {
+		if(pool->managed) {
+			pool->managed->prev = unit;
+		}
+		unit->next = pool->managed;	
+		pool->managed = unit; 
+	} else {
+		if(pool->temporary) {
+			pool->temporary->prev = unit;
+		}
+		unit->next = pool->temporary;	
+		pool->temporary = unit; 
+	}
+	QMutex_Unlock( memMutex );
+	
+	__wipeWithPattern( unit->reportedAddress, unit->reportedSize , 0, unusedPattern );
+	unit->sourceLine = sourceFileline;
+	unit->sourceFunc = sourceFuncName;
+	unit->sourceFile = sourceFilename ;
+	return unit->reportedAddress;
+}
+
+void __Free_Mem(void* mem) {
+	if( mem == NULL ) {
+		return;
+	}
+	
+	QMutex_Lock( memMutex );
+	struct memAllocUnit_s* unit = __findMemAllocUnit(mem);	
+	// if you hit this assertion then this is not memory tracked by mem 
+	assert(unit);
+	if(unit) {
+		__freeMemUnit(unit);	
+	}
+	QMutex_Unlock( memMutex );
+}
+
+struct mempool_s *Pool_Create( struct mempool_s *parent, const char *name, int flags )
+{
+	QMutex_Lock( memMutex );
+	if( !reservoirMemPool ) {
+		reservoirMemPool = malloc( 256 * sizeof( struct mempool_s) );
+
+		memset( reservoirMemPool, 0, sizeof( struct mempool_s ) * 256 );
+		for( unsigned int i = 0; i < 256 - 1; i++ ) {
+			reservoirMemPool[i].next = &reservoirMemPool[i + 1];
+		}
+
+		reservoirMemPoolBuffer = realloc( reservoirMemPoolBuffer, ( memPoolCount + 1 ) * sizeof( struct memAllocPool_s * ) );
+		reservoirMemPoolBuffer[memPoolCount++] = reservoirMemPool;
+	}
+
+	struct mempool_s *pool = reservoirMemPool;
+	reservoirMemPool = pool->next;
+
+	memset( pool, 0, sizeof( struct mempool_s ) );
+	pool->parent = parent;
+	pool->name = name;
+	pool->flags = flags;
+	if( pool->parent ) {
+		pool->next = parent->next;
+		parent->next = pool;
+	} else {
+		pool->next = poolMemChain;
+		poolMemChain = pool;
+	}
+	QMutex_Unlock( memMutex );
+	return pool;
+}
+
+void Pool_Empty(struct mempool_s *pool) {
+	QMutex_Lock( memMutex );
+	if( pool->temporary ) {
+		Com_Printf("[!] Alloc Units not correctly in temporary");
+		__dumpMemoryPool( pool );
+	}
+
+	struct memAllocUnit_s* ptr;
+	ptr = pool->managed;
+	while(ptr) {
+		__freeMemUnit(ptr);
+		ptr = ptr->next;
+	}
+	
+	ptr = pool->temporary;
+	while(ptr) {
+		__dumpAllocUnit(ptr);	
+		__freeMemUnit(ptr);
+		ptr = ptr->next;
+	}
+	QMutex_Unlock( memMutex );
+}
+
+void Pool_Free( struct mempool_s *pool )
+{
+	assert( pool );
+	struct memAllocUnit_s *allocPtr;
+	QMutex_Lock( memMutex );
+	while( pool) {
+		if( pool->temporary ) {
+			Com_Printf( "[!] Alloc Units not correctly in temporary" );
+			__dumpMemoryPool( pool );
+		}
+
+		allocPtr = pool->managed;
+		while( allocPtr ) {
+			__freeMemUnit( allocPtr );
+			allocPtr = allocPtr->next;
+		}
+
+		allocPtr = pool->temporary;
+		while( allocPtr ) {
+			__dumpAllocUnit( allocPtr );
+			__freeMemUnit( allocPtr );
+			allocPtr = allocPtr->next;
+		}
+		pool->next = reservoirMemPool;
+		reservoirMemPool = pool; // move it back to the reservoir for reused
+		pool = pool->next;
+	}
+	QMutex_Unlock( memMutex );
+}
+
+void Pool_Assert_Flags(const struct mempool_s *pool, int requiredFlags) {
+	assert(pool);
+	assert((pool->flags & requiredFlags) == requiredFlags);
+}
 
 static void _Mem_Error( const char *format, ... )
 {
@@ -456,52 +984,52 @@ size_t Mem_PoolTotalSize( mempool_t *pool )
 
 void _Mem_CheckSentinels( void *data, const char *filename, int fileline )
 {
-	memheader_t *mem;
+ // memheader_t *mem;
 
-	if( data == NULL )
-		_Mem_Error( "Mem_CheckSentinels: data == NULL (sentinel check at %s:%i)", filename, fileline );
+ // if( data == NULL )
+ // 	_Mem_Error( "Mem_CheckSentinels: data == NULL (sentinel check at %s:%i)", filename, fileline );
 
-	mem = (memheader_t *)( (uint8_t *) data - sizeof( memheader_t ) );
+ // mem = (memheader_t *)( (uint8_t *) data - sizeof( memheader_t ) );
 
-	assert( mem->sentinel1 == MEMHEADER_SENTINEL1 );
-	assert( *( (uint8_t *) mem + sizeof( memheader_t ) + mem->size ) == MEMHEADER_SENTINEL2 );
+ // assert( mem->sentinel1 == MEMHEADER_SENTINEL1 );
+ // assert( *( (uint8_t *) mem + sizeof( memheader_t ) + mem->size ) == MEMHEADER_SENTINEL2 );
 
-	if( mem->sentinel1 != MEMHEADER_SENTINEL1 )
-		_Mem_Error( "Mem_CheckSentinels: trashed header sentinel 1 (block allocated at %s:%i, sentinel check at %s:%i)", mem->filename, mem->fileline, filename, fileline );
-	if( *( (uint8_t *) mem + sizeof( memheader_t ) + mem->size ) != MEMHEADER_SENTINEL2 )
-		_Mem_Error( "Mem_CheckSentinels: trashed header sentinel 2 (block allocated at %s:%i, sentinel check at %s:%i)", mem->filename, mem->fileline, filename, fileline );
+ // if( mem->sentinel1 != MEMHEADER_SENTINEL1 )
+ // 	_Mem_Error( "Mem_CheckSentinels: trashed header sentinel 1 (block allocated at %s:%i, sentinel check at %s:%i)", mem->filename, mem->fileline, filename, fileline );
+ // if( *( (uint8_t *) mem + sizeof( memheader_t ) + mem->size ) != MEMHEADER_SENTINEL2 )
+ // 	_Mem_Error( "Mem_CheckSentinels: trashed header sentinel 2 (block allocated at %s:%i, sentinel check at %s:%i)", mem->filename, mem->fileline, filename, fileline );
 }
 
 static void _Mem_CheckSentinelsPool( mempool_t *pool, const char *filename, int fileline )
 {
-	memheader_t *mem;
-	mempool_t *child;
+ // memheader_t *mem;
+ // mempool_t *child;
 
-	// recurse into children
-	if( pool->child )
-	{
-		for( child = pool->child; child; child = child->next )
-			_Mem_CheckSentinelsPool( child, filename, fileline );
-	}
+ // // recurse into children
+ // if( pool->child )
+ // {
+ // 	for( child = pool->child; child; child = child->next )
+ // 		_Mem_CheckSentinelsPool( child, filename, fileline );
+ // }
 
-	assert( pool->sentinel1 == MEMHEADER_SENTINEL1 );
-	assert( pool->sentinel2 == MEMHEADER_SENTINEL1 );
+ // assert( pool->sentinel1 == MEMHEADER_SENTINEL1 );
+ // assert( pool->sentinel2 == MEMHEADER_SENTINEL1 );
 
-	if( pool->sentinel1 != MEMHEADER_SENTINEL1 )
-		_Mem_Error( "_Mem_CheckSentinelsPool: trashed pool sentinel 1 (allocpool at %s:%i, sentinel check at %s:%i)", pool->filename, pool->fileline, filename, fileline );
-	if( pool->sentinel2 != MEMHEADER_SENTINEL1 )
-		_Mem_Error( "_Mem_CheckSentinelsPool: trashed pool sentinel 2 (allocpool at %s:%i, sentinel check at %s:%i)", pool->filename, pool->fileline, filename, fileline );
+ // if( pool->sentinel1 != MEMHEADER_SENTINEL1 )
+ // 	_Mem_Error( "_Mem_CheckSentinelsPool: trashed pool sentinel 1 (allocpool at %s:%i, sentinel check at %s:%i)", pool->filename, pool->fileline, filename, fileline );
+ // if( pool->sentinel2 != MEMHEADER_SENTINEL1 )
+ // 	_Mem_Error( "_Mem_CheckSentinelsPool: trashed pool sentinel 2 (allocpool at %s:%i, sentinel check at %s:%i)", pool->filename, pool->fileline, filename, fileline );
 
-	for( mem = pool->chain; mem; mem = mem->next )
-		_Mem_CheckSentinels( (void *)( (uint8_t *) mem + sizeof( memheader_t ) ), filename, fileline );
+ // for( mem = pool->chain; mem; mem = mem->next )
+ // 	_Mem_CheckSentinels( (void *)( (uint8_t *) mem + sizeof( memheader_t ) ), filename, fileline );
 }
 
 void _Mem_CheckSentinelsGlobal( const char *filename, int fileline )
 {
-	mempool_t *pool;
+ // mempool_t *pool;
 
-	for( pool = poolChain; pool; pool = pool->next )
-		_Mem_CheckSentinelsPool( pool, filename, fileline );
+ // for( pool = poolChain; pool; pool = pool->next )
+ // 	_Mem_CheckSentinelsPool( pool, filename, fileline );
 }
 
 static void Mem_CountPoolStats( mempool_t *pool, int *count, int *size, int *realsize )
@@ -668,6 +1196,16 @@ void Memory_Init( void )
 	tempMemPool = Mem_AllocTempPool( "Temporary Memory" );
 
 	memory_initialized = true;
+}
+
+mempool_t *Mem_DefaultTempPool()
+{
+	return tempMemPool;
+}
+
+mempool_t *Mem_DefaultZonePool()
+{
+	return zoneMemPool;
 }
 
 /*
